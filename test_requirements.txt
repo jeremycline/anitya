@@ -1,5 +1,6 @@
 coverage
 flake8
+configparser; python_version < '3.0'
 nose
 vcrpy
 

@@ -55,4 +55,6 @@ setup(
     include_package_data=True,
     scripts=['files/anitya_cron.py'],
     install_requires=get_requirements(),
+    tests_require=get_requirements('test_requirements.txt'),
+    test_suite='tests',
 )

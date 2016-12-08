@@ -1,0 +1,10 @@
+language: python
+sudo: required
+python:
+ - "2.7"
+install:
+ - sudo apt-get install python-rpm
+ - virtualenv --system-site-packages /home/travis/virtualenv/python2.7.12/
+ - pip install --upgrade setuptools pip
+ - pip install -e .
+script: python setup.py test
