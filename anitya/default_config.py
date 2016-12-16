@@ -10,6 +10,8 @@ anitya default configuration.
 """
 
 from datetime import timedelta
+import os.path
+
 
 # Set the time after which the session expires
 PERMANENT_SESSION_LIFETIME = timedelta(hours=1)
@@ -39,3 +41,16 @@ ANITYA_WEB_ALLOW_GENERIC_OPENID = True
 ADMIN_EMAIL = 'admin@fedoraproject.org'
 
 BLACKLISTED_USERS = []
+
+# The location of the client_secrets.json file used for API authentication
+OIDC_CLIENT_SECRETS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'client_secrets.json'
+)
+
+# Force the application to require HTTPS to save the cookie. This should only
+# be `False` in a development environment running on the local host!
+OIDC_ID_TOKEN_COOKIE_SECURE = True
+OIDC_REQUIRE_VERIFIED_EMAIL = True
+OIDC_OPENID_REALM = 'http://localhost:5000/oidc_callback'
+OIDC_SCOPES = ['openid', 'email', 'profile', 'fedora']
