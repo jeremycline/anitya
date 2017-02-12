@@ -21,3 +21,7 @@
 '''
 Anitya tests.
 '''
+import logging
+
+# Ensure a log handler exists for the unit tests
+logging.basicConfig()
