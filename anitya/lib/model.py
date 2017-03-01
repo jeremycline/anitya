@@ -52,6 +52,15 @@ class Log(BASE):
     __tablename__ = 'logs'
 
     id = sa.Column(sa.Integer, primary_key=True)
+    user_id = sa.Column(sa.String(200), sa.ForeignKey(
+        'user.name',
+        ondelete="set null",
+        onupdate="cascade",
+        name="FK_USER"),
+        nullable=False,
+    )
+    user = relationship('User', back_populates='logs')
+    user_id = sa.Column(sa.String(200), index=True, nullable=False)
     user = sa.Column(sa.String(200), index=True, nullable=False)
     project = sa.Column(sa.String(200), index=True, nullable=True)
     distro = sa.Column(sa.String(200), index=True, nullable=True)
@@ -324,6 +333,34 @@ class Packages(BASE):
 
 
 class Project(BASE):
+    """
+    Models an upstream project and maps it to a database table.
+
+    Attributes:
+        id (sa.Integer): The database primary key.
+        name (sa.String): The upstream project's name.
+        homepage (sa.String): The URL for the project's home page.
+        backend (sa.String): The name of the backend to use when fetching updates;
+            this is a foreign key to a :class:`Backend`.
+        ecosystem_name (sa.String): The name of the ecosystem this project is a part
+            of. This is a foreign key to :class:`Ecosystem` and may be null.
+        ecosystem (Ecosystem): The :class:`Ecosystem` this project is a part of.
+        version_url (sa.String): The url to use when polling for new versions. This
+            may be ignored if this project is part of an ecosystem with a fixed
+            URL (e.g. Cargo projects are on https://crates.io).
+        regex (sa.String): A Python ``re`` style regular expression that is applied
+            to the HTML from ``version_url`` to find versions.
+        insecure (sa.Boolean): Whether or not to validate the x509 certificate
+            offered by the server at ``version_url``. Defaults to ``False``.
+        latest_version (sa.Boolean): The latest version for the project, as determined
+            by the version sorting algorithm.
+        logs (sa.Text): The result of the last update.
+        updated_on (sa.DateTime): When the project was last updated.
+        created_on (sa.DateTime): When the project was created in Anitya.
+        packages (list): List of :class:`Package` objects which represent the
+            downstream packages for this project.
+        created_by (User): The user that created this project.
+    """
     __tablename__ = 'projects'
 
     id = sa.Column(sa.Integer, primary_key=True)
@@ -360,6 +397,14 @@ class Project(BASE):
     updated_on = sa.Column(sa.DateTime, server_default=sa.func.now(),
                            onupdate=sa.func.current_timestamp())
     created_on = sa.Column(sa.DateTime, default=datetime.datetime.utcnow)
+
+    created_by_id = sa.Column(sa.String(200), sa.ForeignKey(
+        'user.name',
+        ondelete="set null",
+        onupdate="cascade",
+        name="FK_PROJECT_CREATOR")
+    )
+    created_by = relationship('User', back_populates='projects')
 
     packages = sa.orm.relation('Packages')
 
@@ -770,3 +815,18 @@ class Run(BASE):
             cls.created_on.desc()
         )
         return query.first()
+
+
+class User(BASE):
+    """
+    Table of Anitya users.
+
+    Attributes:
+        name (sa.String): An identifier for the user, typically their OpenID.
+        projects (list): A list of :class:`Project` this users has created.
+    """
+    __tablename__ = 'user'
+
+    name = sa.Column(sa.String(200), primary_key=True)
+    projects = relationship('Project', back_populates='created_by')
+    logs = relationship('Log', back_populates='user')

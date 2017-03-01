@@ -2,6 +2,8 @@
 
 import logging
 
+from sqlalchemy.orm.exc import NoResultFound
+
 import anitya.lib.plugins
 import anitya.lib.exceptions
 # Feature check: version comparisons were historically done with cmp
@@ -186,6 +188,12 @@ def log(session, project=None, distro=None, topic=None, message=None):
         distro=distro,
         message=message,
     ))
+
+    try:
+        user = session.query(anitya.lib.model.User).filter_by(name=message['agent']).one()
+    except NoResultFound:
+        user = anitya.lib.model.User(name=message['agent'])
+        session.add(user)
 
     model.Log.insert(
         session,

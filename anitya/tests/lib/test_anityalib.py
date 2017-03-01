@@ -40,6 +40,7 @@ class AnityaLibtests(Modeltests):
         """ Test the create_project function of Distro. """
         create_distro(self.session)
         self.assertEqual(2, model.Distro.all(self.session, count=True))
+        self.assertEqual(0, self.session.query(model.User).count())
 
         anitya.lib.create_project(
             self.session,
@@ -51,9 +52,49 @@ class AnityaLibtests(Modeltests):
         )
 
         project_objs = anitya.lib.model.Project.all(self.session)
+        user_objs = self.session.query(model.User).all()
         self.assertEqual(len(project_objs), 1)
         self.assertEqual(project_objs[0].name, 'geany')
         self.assertEqual(project_objs[0].homepage, 'http://www.geany.org/')
+        self.assertEqual(1, len(user_objs))
+        self.assertEqual('noreply@fedoraproject.org', user_objs[0].name)
+
+    def test_create_project_existing_user(self):
+        """Test create_project with an existing user"""
+        user_id = 'http://jcline.id.fedoraproject.org'
+        user = model.User(name=user_id)
+        self.session.add(user)
+        self.session.commit()
+        self.assertEqual(1, self.session.query(model.User).count())
+
+        anitya.lib.create_project(
+            self.session,
+            name='geany',
+            homepage='http://www.geany.org/',
+            version_url='http://www.geany.org/Download/Releases',
+            regex='DEFAULT',
+            user_id=user_id,
+        )
+
+        project_objs = anitya.lib.model.Project.all(self.session)
+        user_objs = self.session.query(model.User).all()
+        self.assertEqual(len(project_objs), 1)
+        self.assertEqual(project_objs[0].name, 'geany')
+        self.assertEqual(project_objs[0].homepage, 'http://www.geany.org/')
+        self.assertEqual(1, len(user_objs))
+        self.assertEqual(user_id, user_objs[0].name)
+
+    def test_create_project_duplicate(self):
+        """Assert attempting to create a duplicate project raises AnityaException"""
+        create_distro(self.session)
+        anitya.lib.create_project(
+            self.session,
+            name='geany',
+            homepage='http://www.geany.org/',
+            version_url='http://www.geany.org/Download/Releases',
+            regex='DEFAULT',
+            user_id='noreply@fedoraproject.org',
+        )
 
         self.assertRaises(
             AnityaException,

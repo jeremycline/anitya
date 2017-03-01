@@ -34,7 +34,7 @@ import anitya.lib.model as model
 from anitya.tests.base import Modeltests, create_distro, create_project, create_package
 
 
-class Modeltests(Modeltests):
+class ModelTests(Modeltests):
     """ Model tests. """
 
     def test_init_distro(self):
@@ -45,16 +45,6 @@ class Modeltests(Modeltests):
         distros = model.Distro.all(self.session)
         self.assertEqual(distros[0].name, 'Debian')
         self.assertEqual(distros[1].name, 'Fedora')
-
-    def test_init_project(self):
-        """ Test the __init__ function of Project. """
-        create_project(self.session)
-        self.assertEqual(3, model.Project.all(self.session, count=True))
-
-        projects = model.Project.all(self.session)
-        self.assertEqual(projects[0].name, 'geany')
-        self.assertEqual(projects[1].name, 'R2spec')
-        self.assertEqual(projects[2].name, 'subsurface')
 
     def test_log_search(self):
         """ Test the Log.search function. """
@@ -127,32 +117,6 @@ class Modeltests(Modeltests):
         pkg = model.Packages.by_id(self.session, 1)
         self.assertEqual(str(pkg), '<Packages(1, Fedora: geany)>')
 
-    def test_project_all(self):
-        """ Test the Project.all function. """
-        create_project(self.session)
-
-        projects = model.Project.all(self.session, count=True)
-        self.assertEqual(projects, 3)
-
-        projects = model.Project.all(self.session, page=2)
-        self.assertEqual(len(projects), 0)
-
-        projects = model.Project.all(self.session, page='asd')
-        self.assertEqual(len(projects), 3)
-
-    def test_project_search(self):
-        """ Test the Project.search function. """
-        create_project(self.session)
-
-        projects = model.Project.search(self.session, '*', count=True)
-        self.assertEqual(projects, 3)
-
-        projects = model.Project.search(self.session, '*', page=2)
-        self.assertEqual(len(projects), 0)
-
-        projects = model.Project.search(self.session, '*', page='asd')
-        self.assertEqual(len(projects), 3)
-
     def test_backend_by_name(self):
         """ Test the Backend.by_name function. """
         import anitya.lib.plugins as plugins
@@ -182,6 +146,21 @@ class Modeltests(Modeltests):
             self.assertEqual(ecosystem.default_backend.default_ecosystem.name,
                              ecosystem.name)
 
+
+class ProjectTests(Modeltests):
+
+    def test_init_project(self):
+        """ Test the __init__ function of Project. """
+        create_project(self.session)
+        self.assertEqual(3, model.Project.all(self.session, count=True))
+
+        projects = model.Project.all(self.session)
+        for project in projects:
+            self.assertEqual('noreply@fedoraproject.org', project.created_by.name)
+        self.assertEqual(projects[0].name, 'geany')
+        self.assertEqual(projects[1].name, 'R2spec')
+        self.assertEqual(projects[2].name, 'subsurface')
+
     def test_project_get_or_create(self):
         """ Test the Project.get_or_create function. """
         project = model.Project.get_or_create(
@@ -202,6 +181,46 @@ class Modeltests(Modeltests):
             backend='foobar'
         )
 
+    def test_project_all(self):
+        """ Test the Project.all function. """
+        create_project(self.session)
+
+        projects = model.Project.all(self.session, count=True)
+        self.assertEqual(projects, 3)
+
+        projects = model.Project.all(self.session, page=2)
+        self.assertEqual(len(projects), 0)
+
+        projects = model.Project.all(self.session, page='asd')
+        self.assertEqual(len(projects), 3)
+
+    def test_project_search(self):
+        """ Test the Project.search function. """
+        create_project(self.session)
+
+        projects = model.Project.search(self.session, '*', count=True)
+        self.assertEqual(projects, 3)
+
+        projects = model.Project.search(self.session, '*', page=2)
+        self.assertEqual(len(projects), 0)
+
+        projects = model.Project.search(self.session, '*', page='asd')
+        self.assertEqual(len(projects), 3)
+
+
+class UserTests(Modeltests):
+
+    def test_projects_relationship(self):
+        """Assert the user `projects` relationship is populated"""
+        # Create three projects
+        create_project(self.session)
+        users = self.session.query(model.User).all()
+        projects = self.session.query(model.Project).all()
+        self.assertEqual(1, len(users))
+        self.assertEqual(3, len(projects))
+        self.assertEqual(3, len(users[0].projects))
+        self.assertListEqual(projects, users[0].projects)
+
+
 if __name__ == '__main__':
-    SUITE = unittest.TestLoader().loadTestsFromTestCase(Modeltests)
-    unittest.TextTestRunner(verbosity=2).run(SUITE)
+    unittest.main(verbosity=2)

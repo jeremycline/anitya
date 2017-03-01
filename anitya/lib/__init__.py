@@ -19,6 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm.exc import NoResultFound
 
 import anitya
 import anitya.lib
@@ -82,6 +83,12 @@ def create_project(
     backend_ref = anitya.lib.model.Backend.by_name(session, name=backend)
     ecosystem_ref = backend_ref.default_ecosystem
 
+    try:
+        user = session.query(anitya.lib.model.User).filter_by(name=user_id).one()
+    except NoResultFound:
+        user = anitya.lib.model.User(name=user_id)
+        session.add(user)
+
     project = anitya.lib.model.Project(
         name=name,
         homepage=homepage,
@@ -90,6 +97,7 @@ def create_project(
         version_url=version_url,
         regex=regex,
         version_prefix=version_prefix,
+        created_by=user,
     )
 
     session.add(project)
