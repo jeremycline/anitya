@@ -26,6 +26,7 @@ anitya tests of the model.
 import datetime
 import unittest
 
+from sqlalchemy.exc import IntegrityError
 import mock
 
 import anitya.lib.model as model
@@ -364,6 +365,112 @@ class DatabaseTestCase(DatabaseTestCase):
 
         pkg = model.Packages.by_id(self.session, 1)
         self.assertEqual(str(pkg), '<Packages(1, Fedora: geany)>')
+
+
+class LocalUserTests(DatabaseTestCase):
+    """Tests for the :class:`model.User` class."""
+
+    def test_create_user(self):
+        """Assert users can be created."""
+        session = model.Session()
+        session.add(model.LocalUser(primary_email='jcline@example.com'))
+        session.commit()
+
+        users = model.LocalUser.query.all()
+        self.assertEqual(1, len(users))
+        self.assertEqual('jcline@example.com', users[0].primary_email)
+
+    def test_create_duplicate_user(self):
+        """Assert users with duplicate emails cannot be created."""
+        session = model.Session()
+        session.add(model.LocalUser(primary_email='jcline@example.com'))
+        session.commit()
+
+        session.add(model.LocalUser(primary_email='jcline@example.com'))
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+
+class ThirdPartyUserTests(DatabaseTestCase):
+    """Tests for the :class:`model.ThirdPartyUser` class."""
+
+    def test_relation_to_user(self):
+        """Assert ThirdPartyUser is related to User."""
+        session = model.Session()
+        user = model.LocalUser(primary_email='jcline@example.com')
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='Word of Mouth',
+            local_user=user)
+        )
+        session.commit()
+
+        third_party_user = model.ThirdPartyUser.query.first()
+
+        self.assertEqual('jcline@example.com', third_party_user.local_user.primary_email)
+        self.assertTrue(isinstance(third_party_user.local_user, model.LocalUser))
+
+    def test_multiple_third_parties(self):
+        """Assert many ThirdPartyUser objects can associate with one User."""
+        session = model.Session()
+        user = model.LocalUser(primary_email='jcline@example.com')
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='Word of Mouth',
+            local_user=user)
+        )
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='The Internet',
+            local_user=user)
+        )
+        session.commit()
+
+        user = model.LocalUser.query.first()
+
+        self.assertEqual(2, len(user.third_party_users))
+
+    def test_duplicate_third_party_user(self):
+        """Assert ThirdPartyUser objects are unique on ID service + 3rd party ID."""
+        session = model.Session()
+        user = model.LocalUser(primary_email='jcline@example.com')
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='Word of Mouth',
+            local_user=user)
+        )
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='Word of Mouth',
+            local_user=user)
+        )
+
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+    def test_cascading_delete(self):
+        """Assert deleting a local user deletes the third-party user entries."""
+        session = model.Session()
+        user = model.LocalUser(primary_email='jcline@example.com')
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='Word of Mouth',
+            local_user=user)
+        )
+        session.add(model.ThirdPartyUser(
+            third_party_user_id='jeremy',
+            identity_service='The Internet',
+            local_user=user)
+        )
+        session.commit()
+
+        self.assertEqual(1, model.LocalUser.query.count())
+        self.assertEqual(2, model.ThirdPartyUser.query.count())
+        session.delete(model.LocalUser.query.first())
+        session.commit()
+
+        self.assertEqual(0, model.LocalUser.query.count())
+        self.assertEqual(0, model.ThirdPartyUser.query.count())
 
 
 if __name__ == '__main__':

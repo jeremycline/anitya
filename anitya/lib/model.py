@@ -26,10 +26,10 @@ import logging
 import time
 
 import sqlalchemy as sa
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import (
+    relationship, sessionmaker, scoped_session, query as sa_query, validates)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import sessionmaker, scoped_session, query as sa_query
 
 from .versions import GLOBAL_DEFAULT as DEFAULT_VERSION_SCHEME
 
@@ -908,3 +908,50 @@ class Run(BASE):
             cls.created_on.desc()
         )
         return query.first()
+
+
+class ThirdPartyUser(BASE):
+    """
+    A table that maps third party identity providers to local users.
+
+    Attributes:
+        third_party_user_id (str): The identity service provider's unique identifier for a user.
+            For example, the "sub" (Subject Identifier) field provided by OpenID Connect
+            providers.
+        identity_service (str): The identifier for an identity service provider.
+        local_user_id (str): Foreign key to the local :class:`User` table.
+        user (User): A back-reference to the local user mapped to this third-party user.
+    """
+    __tablename__ = 'third_party_user'
+
+    # OIDC limit for a Subject Identifier is 255 ASCII characters:
+    # https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+    third_party_user_id = sa.Column(sa.String(256), primary_key=True)
+    identity_service = sa.Column(sa.String(256), primary_key=True)
+    local_user_id = sa.Column(sa.Integer, sa.ForeignKey('local_user.id'), nullable=False)
+
+
+class LocalUser(BASE):
+    """
+    A table for local Anitya users.
+
+    Anitya supports several 3rd party authentication mechanisms. We handle this
+    by relating the :class:`ThirdPartyUser` entries to this local user.
+
+    Attributes:
+        id (int): The primary key for the table.
+        primary_email (str): The user's primary email for this account.
+        third_party_users (sqlalchemy.orm.collections.InstrumentedList): A list
+            of third-party user accounts associated with this local account.
+    """
+    __tablename__ = 'local_user'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    # SMTP says 256 is the maximum length of a path:
+    # https://tools.ietf.org/html/rfc5321#section-4.5.3
+    primary_email = sa.Column(sa.String(256), nullable=False, index=True, unique=True)
+    third_party_users = relationship(
+        "ThirdPartyUser",
+        backref="local_user",
+        cascade="save-update, merge, delete, delete-orphan"
+    )
