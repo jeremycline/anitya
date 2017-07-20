@@ -27,8 +27,7 @@ import sre_constants
 import six.moves.urllib.request as urllib2
 
 import requests
-import anitya
-import anitya.app
+from anitya.config import config as anitya_config
 from anitya.lib.exceptions import AnityaPluginException
 from anitya.lib.versions import RpmVersion
 import six
@@ -203,9 +202,8 @@ class BaseBackend(object):
         :return: the request object corresponding to the request made
         :return type: Request
         '''
-        user_agent = 'Anitya %s at upstream-monitoring.org' % \
-            anitya.app.__version__
-        from_email = anitya.app.APP.config.get('ADMIN_EMAIL')
+        user_agent = 'Anitya at upstream-monitoring.org'
+        from_email = anitya_config.get('ADMIN_EMAIL')
 
         if '*' in url:
             url = self.expand_subdirs(url)
