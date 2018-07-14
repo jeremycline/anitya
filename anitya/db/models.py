@@ -359,15 +359,16 @@ class Project(Base):
 
     @property
     def versions(self):
-        ''' Return list of all versions stored, sorted from newest to oldest.
-        '''
+        """
+        Known versions of this project.
+
+        Returns:
+            ProjectVersion: All versions, sorted from newest to oldest based on
+                the version scheme used for this project.
+        """
         version_class = self.get_version_class()
-        versions = [
-            version_class(version=v_obj.version, prefix=self.version_prefix)
-            for v_obj in self.versions_obj
-        ]
-        sorted_versions = reversed(sorted(versions))
-        return [v.version for v in sorted_versions]
+        versions = [version_class(version=v_obj) for v_obj in self.versions_obj]
+        return reversed(sorted(versions))
 
     def get_version_class(self):
         """
@@ -413,7 +414,7 @@ class Project(Base):
             backend=self.backend,
             version_url=self.version_url,
             version=self.latest_version,
-            versions=self.versions,
+            versions=[v.version for v in self.versions],
             created_on=time.mktime(self.created_on.timetuple()) if self.created_on else None,
             updated_on=time.mktime(self.updated_on.timetuple()) if self.updated_on else None,
             ecosystem=self.ecosystem_name,
@@ -644,6 +645,16 @@ class Project(Base):
 
 
 class ProjectVersion(Base):
+    """
+    A project version which contains the original version string retrieved from
+    the upstream project.
+
+    Attributes:
+        project_id (sa.Integer): The foreign key to the :class:`Project`.
+        version (sa.String): The version string retrieved from upstream.
+        created_on (sa.DateTime): The time this version was created in Anitya.
+
+    """
     __tablename__ = 'projects_versions'
 
     project_id = sa.Column(
@@ -654,9 +665,16 @@ class ProjectVersion(Base):
             onupdate="cascade"),
         primary_key=True,
     )
-    version = sa.Column(sa.String(50), primary_key=True)
-
     project = sa.orm.relation('Project', backref='versions_obj')
+    version = sa.Column(sa.String(50), primary_key=True)
+    created_on = sa.Column(sa.DateTime, default=datetime.datetime.utcnow)
+
+    def __str__(self):
+        """Human-readable representation of this version, including discovery time."""
+        if self.created_on:
+            return '{} - {}'.format(self.version, self.created_on)
+        else:
+            return '{} - Creation date unknown'.format(self.version)
 
 
 class ProjectFlag(Base):

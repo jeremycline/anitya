@@ -31,6 +31,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.types import CHAR
 from sqlalchemy.exc import IntegrityError
 import six
+import mock
 
 from anitya.db import models, Session
 from anitya.lib import versions
@@ -434,5 +435,18 @@ class ApiTokenTests(DatabaseTestCase):
         self.assertEqual(user.api_tokens, [token])
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+class ProjectVersionTests(DatabaseTestCase):
+
+    def test_default_non_null(self):
+        """Assert new versions have a default of now for created_on."""
+        project = models.Project(
+            name='test',
+            homepage='https://example.com',
+            backend='custom',
+        )
+        version = models.ProjectVersion(project=project, version='0.1.0')
+        self.session.add(version)
+        self.session.commit()
+
+        version = models.ProjectVersion.query.filter_by(project=project, version='0.1.0').one()
+        self.assertIsNotNone(version.created_on)

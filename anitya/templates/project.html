@@ -43,7 +43,7 @@
                   <ul>
                     {% for version in project.versions %}
                     <li property="doap:release" typeof="doap:Version">
-                      <span property="doap:revision">{{ version }}</span>
+                        <span property="doap:revision">{{ version.version_obj }}</span>
                       {% if is_admin %}
                       <a href="{{ url_for('anitya_ui.delete_project_version',
                                     project_id=project.id,

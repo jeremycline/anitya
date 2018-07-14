@@ -31,13 +31,20 @@ v_prefix = re.compile(r'v\d.*')
 
 @functools.total_ordering
 class Version(object):
-    """The base class for versions."""
+    """
+    The base class for versions.
+
+    Args:
+        version_obj (anitya.db.models.ProjectVersion): The project version database
+            object.
+    """
 
     name = 'Generic Version'
 
-    def __init__(self, version=None, prefix=None):
-        self.version = version
-        self.prefix = prefix
+    def __init__(self, version_obj):
+        self.version_obj = version_obj
+        self.version = version_obj.version
+        self.prefix = version_obj.project.version_prefix
 
     def __str__(self):
         """
